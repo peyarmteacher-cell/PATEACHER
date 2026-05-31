@@ -258,6 +258,7 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'portfolio' | 'admin'>('portfolio');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'indicators' | 'challenge' | 'mysql' | 'copilot'>('dashboard');
+  const [mysqlExportFormat, setMysqlExportFormat] = useState<'php' | 'sql'>('php');
 
   // --- Super Admin Manage States ---
   const isSuperAdmin = profile?.id === 'super_admin';
@@ -978,7 +979,7 @@ export default function App() {
             }`}
           >
             <Server className="h-5 w-5 shrink-0" />
-            <span className="text-sm">ส่งออกโครงสร้าง MySQL</span>
+            <span className="text-sm">เชื่อมต่อ PHP + MySQL</span>
           </button>
         </nav>
 
@@ -1916,48 +1917,157 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 4: MYSQL DATABASE SCRIPT DUMP & RESTORE */}
+          {/* TAB 4: MYSQL & PHP DATABASE SERVICE CONNECTOR */}
           {activeTab === 'mysql' && (
             <div id="view_mysql" className="space-y-6 max-w-4xl mx-auto">
               
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
                 
-                <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-5 gap-4">
                   <div>
-                    <span className="text-[10px] bg-slate-900 text-emerald-400 border border-slate-800 px-2.5 py-0.5 rounded-full font-bold">
-                      MySQL / MariaDB integration
+                    <span className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-850 px-2.5 py-0.5 rounded-full font-bold">
+                      PHP & MySQL Integration (สพฐ.)
                     </span>
                     <h3 className="text-xl font-bold text-slate-900 mt-1.5 flex items-center gap-1.5">
                       <Server className="h-6 w-6 text-emerald-600" />
-                      ระบบส่งออกข้อมูลและจัดเตรียม Database สพฐ.
+                      ระบบเชื่อมโยงข้อมูลเซิร์ฟเวอร์โรงเรียนด้วย PHP & MySQL
                     </h3>
                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      อำนวยความสะดวกในการจัดเก็บข้อมูลคุณครูและชิ้นงานประเด็นท้าทายให้คงอยู่แบบถาวรบน MySQL โรงเรียนของคุณครู 
-                      คลิกปุ่มดาวน์โหลด .sql ด้านล่างและนำไฟล์ที่ได้ไปรัน SQL query ใน phpMyAdmin, Navicat, DBeaver หรือ Docker ได้ทันที
+                      ช่วยจัดเตรียมโค้ดเชื่อมต่อกับระบบฐานข้อมูลของโรงเรียน (ที่รันบน PHP / phpMyAdmin) เพื่ออำนวยความสะดวกให้งานประเด็นท้าทายและพอร์ตโฟลิโอเก็บไว้ถาวร
                     </p>
                   </div>
 
-                  <a
-                    id="sql_export_button_tab"
-                    href="/api/db/mysql-dump"
-                    target="_blank"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-200 flex items-center gap-2 active:scale-95 transition-all"
-                  >
-                    <Download className="h-4 w-4" />
-                    ดาวน์โหลดสคริปต์ SQL
-                  </a>
+                  <div className="flex items-center gap-2">
+                    {mysqlExportFormat === 'php' ? (
+                      <a
+                        id="php_export_button"
+                        href="/api/db/php-backend"
+                        target="_blank"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-200 flex items-center gap-2 active:scale-95 transition-all whitespace-nowrap"
+                      >
+                        <Download className="h-4 w-4" />
+                        ดาวน์โหลดไฟล์ PHP
+                      </a>
+                    ) : (
+                      <a
+                        id="sql_export_button_tab"
+                        href="/api/db/mysql-dump"
+                        target="_blank"
+                        className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-slate-200 flex items-center gap-2 active:scale-95 transition-all whitespace-nowrap"
+                      >
+                        <Download className="h-4 w-4" />
+                        ดาวน์โหลดสคริปต์ SQL
+                      </a>
+                    )}
+                  </div>
                 </div>
 
-                <div className="bg-slate-900 text-slate-200 rounded-xl p-5 font-mono text-xs space-y-4 shadow-inner">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 text-slate-400">
-                    <span className="flex items-center gap-1.5 text-emerald-400">
-                      <FileCode className="h-4 w-4" /> schema_obec_pa.sql
-                    </span>
-                    <span className="text-[10px]">InnoDB | UTF-8 unicode_ci</span>
-                  </div>
+                {/* Sub Tab selection to switch formats */}
+                <div className="flex bg-slate-100 p-1.5 rounded-xl max-w-lg">
+                  <button
+                    onClick={() => setMysqlExportFormat('php')}
+                    className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+                      mysqlExportFormat === 'php'
+                        ? 'bg-white text-emerald-700 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    🚀 ไฟล์เชื่อมต่อเซิร์ฟเวอร์ PHP และคำสั่งต่อ SQL
+                  </button>
+                  <button
+                    onClick={() => setMysqlExportFormat('sql')}
+                    className={`flex-1 text-center py-2 text-xs font-bold rounded-lg transition-all ${
+                      mysqlExportFormat === 'sql'
+                        ? 'bg-white text-emerald-700 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    📦 ไฟล์สคริปต์ SQL เปล่า (.sql)
+                  </button>
+                </div>
 
-                  {/* Pre-view of the CREATE TABLE queries */}
-                  <pre className="overflow-x-auto text-[11px] leading-relaxed max-h-56 scrollbar bg-slate-950/60 p-3 rounded">
+                {/* Dynamic Display depending on format option chosen */}
+                {mysqlExportFormat === 'php' ? (
+                  <div className="space-y-6">
+                    <div className="bg-slate-900 text-slate-200 rounded-xl p-5 font-mono text-xs space-y-4 shadow-inner">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 text-slate-400">
+                        <span className="flex items-center gap-1.5 text-emerald-400">
+                          <FileCode className="h-4 w-4" /> obec_pa_connector.php
+                        </span>
+                        <span className="text-[10px]">PHP Data Objects (PDO) • UTF-8 Unicode</span>
+                      </div>
+
+                      {/* Display PHP connection instructions */}
+                      <pre className="overflow-x-auto text-[11px] leading-relaxed max-h-72 scrollbar bg-slate-950/60 p-3 rounded text-slate-300">
+{`<?php
+// 1. กำหนดตัวแปรติดตั้งค่าเชื่อมโยงฐานข้อมูล MySQL
+define('DB_HOST', 'localhost');
+define('DB_PORT', '3306');
+define('DB_USER', 'root');
+define('DB_PASS', ''); 
+define('DB_NAME', 'obec_pa');
+
+try {
+    // 2. คำสั่งสร้างการเชื่อมต่อฐานข้อมูล SQL คราส PDO ปลอดภัยสูง
+    $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ]);
+    
+    // 3. ตรวจจับและกวดวิชาสร้างฐานข้อมูลอัตโนมัติหากไม่มีอยู่ในระบบโรงเรียน
+    $pdo->exec("CREATE DATABASE IF NOT EXISTS \`" . DB_NAME . "\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+    $pdo->exec("USE \`" . DB_NAME . "\`;");
+    
+    // 4. สั่งสร้างตารางแบบ Relational (teachers, agreements, indicators, evidence) ...
+} catch (\\PDOException $e) {
+    die("เชื่อมขั้ว MySQL ล้มเหลว: " . $e->getMessage());
+}`}
+                      </pre>
+                      
+                      <div className="text-[10px] text-slate-400 space-y-1">
+                        <p>✓ รองรับระบบจัดสร้างตารางโดยอัตโนมัติ (Auto-Initialization Scheme) เมื่อเรียกใช้งานครั้งแรก</p>
+                        <p>✓ มาพร้อม API สำหรับการควบคุมระบบ อนุมัติ บัญชีคุณครูผ่าน PHP PDO ไปยังฐานข้อมูลสพฐ.</p>
+                      </div>
+                    </div>
+
+                    {/* How to deploy instructions */}
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-slate-800">วิธีการติดตั้งบน Server โรงเรียนของคุณครู (PHP/PDO Deployment Guide):</h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed text-slate-600">
+                        <div className="border border-slate-200 rounded-xl p-4 bg-emerald-50/20 border-emerald-100">
+                          <p className="font-bold text-slate-900 mb-1 flex items-center gap-1">
+                            <span>📂 ขั้นตอนที่ 1: บันทึกและวางไฟล์</span>
+                          </p>
+                          <p className="text-slate-600">
+                            ดาวน์โหลดไฟล์ <code className="bg-slate-100 text-emerald-700 font-mono px-1 py-0.5 rounded">obec_pa_connector.php</code> โดยกดปุ่มด้านบน จากนั้นนำไปอัปโหลดขึ้นเครื่องเซิร์ฟเวอร์โรงเรียนของคุณครูที่รองรับ PHP ในโฟลเดอร์รันเว็บหลัก (เช่นโฟลเดอร์ <code className="bg-slate-100 font-mono px-1">htdocs</code> ใน XAMPP หรือโฟลเดอร์ Apache แดชบอร์ดทั่วไป)
+                          </p>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-xl p-4 bg-emerald-50/20 border-emerald-100">
+                          <p className="font-bold text-slate-900 mb-1 flex items-center gap-1">
+                            <span>⚙️ ขั้นตอนที่ 2: ปรับแต่งรหัสผ่านฐานข้อมูล</span>
+                          </p>
+                          <p className="text-slate-600">
+                            เปิดแก้ไขไฟล์ผ่าน Text Editor ทั่วไปและกำหนดชื่อ Host, User (<code className="bg-slate-100 font-mono px-1">root</code>) และรหัสผ่านเข้า phpMyAdmin ของโรงเรียน จากนั้นเมื่อเรียกไฟลนี้บนเบราว์เซอร์ครั้งแรก ระบบจะทำการ <strong>สร้างตารางข้อมูล ครู, ประเด็นท้าทาย, 15 ตัวชี้วัด</strong> เข้าสู่ phpMyAdmin ให้อย่างสมบูรณ์แบบโดยไม่ต้องพิมพ์ SQL เปล่าเอง!
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-slate-900 text-slate-200 rounded-xl p-5 font-mono text-xs space-y-4 shadow-inner">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 text-slate-400">
+                        <span className="flex items-center gap-1.5 text-emerald-400">
+                          <FileCode className="h-4 w-4" /> schema_obec_pa.sql
+                        </span>
+                        <span className="text-[10px]">InnoDB | UTF-8 unicode_ci</span>
+                      </div>
+
+                      <pre className="overflow-x-auto text-[11px] leading-relaxed max-h-56 scrollbar bg-slate-950/60 p-3 rounded">
 {`-- ========================================================
 -- PA Teacher Portfolio & Performance Agreement Tables
 -- ========================================================
@@ -1976,45 +2086,39 @@ CREATE TABLE \`pa_agreements\` (
   \`id\` VARCHAR(50) PRIMARY KEY,
   \`teacherId\` VARCHAR(50) NOT NULL,
   \`budgetYear\` VARCHAR(10) NOT NULL,
-  \`workloadLessons\` VARCHAR(50) DEFAULT '18',
   ...
   FOREIGN KEY (\`teacherId\`) REFERENCES \`teachers\`(\`id\`) ON DELETE CASCADE
 );`}
-                  </pre>
-                  
-                  <div className="text-[10px] text-slate-400 space-y-1">
-                    <p>✓ รองรับโครงสร้าง Relational Database พร้อม Key คีย์นอกสมบูรณ์แบบ</p>
-                    <p>✓ รวมข้อมูลแถวของตัวสะสมผลงาน 15 ตัวชี้วัด, ประเด็นท้าทาย และลิงก์แนบงานเพื่อพอร์ตฟอลิโอ</p>
-                  </div>
-                </div>
-
-                {/* Steps instructions */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-800">วิธีการนำไปติดตั้งและสร้างระบบฐานข้อมูลจริง (MySQL Setup):</h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed text-slate-600">
-                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                      <p className="font-bold text-slate-800 mb-1">🛠️ ผ่านแอป phpMyAdmin:</p>
-                      <ol className="list-decimal list-inside space-y-1">
-                        <li>เข้าสู่ระบบแดชบอร์ด phpMyAdmin</li>
-                        <li>กดสร้างฐานข้อมูลใหม่ ชื่อ <code className="bg-slate-100 font-mono px-1 py-0.5 rounded">obec_pa</code></li>
-                        <li>เลือกเมนู <strong>"Import"</strong> (นำเข้า)</li>
-                        <li>เลือกไฟล์ <code className="bg-slate-100 font-mono px-1 py-0.5 rounded">*.sql</code> ที่ท่านดาวน์โหลด และกดปุ่ม Import ดำเนินงาน</li>
-                      </ol>
-                    </div>
-
-                    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-                      <p className="font-bold text-slate-800 mb-1">💻 ผ่าน Docker หรือ Command Line:</p>
-                      <pre className="font-mono text-[10px] bg-slate-100 p-2 rounded text-slate-700">
-mysql -u root -p obec_pa &lt; backup.sql
                       </pre>
-                      <p className="mt-2 text-slate-500">
-                        สคริปต์ประกอบไปด้วยชุดรหัส SHA256 รหัสผ่านเพื่อล็อกอินของแอดมินคุณครู สอดคล้องกับพจนานุกรมและโครงสร้างเทเบิลที่ปรับแต่งโดยเฉพาะ
-                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-slate-800">วิธีการรันโครงสร้างฐานข้อมูล MySQL (ผ่านไฟล์ SQL แบบดั้งเดิม):</h4>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed text-slate-600">
+                        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                          <p className="font-bold text-slate-800 mb-1">🛠️ ผ่านแอป phpMyAdmin:</p>
+                          <ol className="list-decimal list-inside space-y-1 text-slate-600">
+                            <li>เข้าสู่ระบบหน้าหลัก phpMyAdmin ของคุณครู</li>
+                            <li>กดสร้างฐานข้อมูลอันใหม่ชื่อ <code className="bg-slate-100 font-mono px-1">obec_pa</code></li>
+                            <li>คลิกที่เมนูแถบ <strong>"Import"</strong> (นำเข้า) ด้านบน</li>
+                            <li>แนบไฟล์สคริปต์ SQL ที่ท่านพกพาดาวน์โหลดลงไป และกดคลิกยืนยันการนำโครงข่ายตารางได้ทันที</li>
+                          </ol>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                          <p className="font-bold text-slate-800 mb-1">💻 ผ่าน Docker หรือ Command Line Terminal:</p>
+                          <pre className="font-mono text-[10px] bg-slate-100 p-2 rounded text-slate-700">
+mysql -u root -p obec_pa &lt; backup.sql
+                          </pre>
+                          <p className="mt-2 text-slate-500">
+                            สคริปต์จะครอบคลุมโครงตารางทั้งหมดเรียบร้อยแล้ว ได้คะแนนโครงสร้างความสัมพันธ์ที่ถูกต้องตามระบบวPA สพฐ.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                </div>
+                )}
 
               </div>
 

@@ -18,6 +18,7 @@ import {
   addEvidence,
   deleteEvidence,
   generateMySQLDump,
+  generatePHPBackendDownload,
   getAllTeachers,
   approveTeacher,
   deleteTeacherAccount
@@ -300,6 +301,20 @@ app.get('/api/db/mysql-dump', (req, res) => {
   } catch (error) {
     console.error('MySQL database generation error:', error);
     res.status(500).json({ error: 'เกิดข้อผิดพลาดในการสร้างสคริปต์ส่งออก MySQL' });
+  }
+});
+
+// 5b. PHP + MySQL Database Connection & API Backend Export
+app.get('/api/db/php-backend', (req, res) => {
+  try {
+    const phpCode = generatePHPBackendDownload();
+    res.setHeader('Content-disposition', `attachment; filename=obec_pa_connector.php`);
+    res.setHeader('Content-type', 'application/x-httpd-php');
+    res.write(phpCode);
+    res.end();
+  } catch (error) {
+    console.error('PHP backend generation error:', error);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการจัดทำสคริปต์เชื่อมต่อ PHP' });
   }
 });
 
