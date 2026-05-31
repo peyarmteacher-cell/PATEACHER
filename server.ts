@@ -25,7 +25,7 @@ import {
 } from './server_db';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
@@ -398,9 +398,17 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`PA Teacher Server running on http://0.0.0.0:${PORT}`);
-  });
+  // Safe listening for Plesk/IIS Windows Named Pipes
+  const isPipe = typeof PORT === 'string' && isNaN(Number(PORT));
+  if (isPipe) {
+    app.listen(PORT, () => {
+      console.log(`PA Teacher Server running on Windows Named Pipe: ${PORT}`);
+    });
+  } else {
+    app.listen(Number(PORT), '0.0.0.0', () => {
+      console.log(`PA Teacher Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
