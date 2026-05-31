@@ -1,0 +1,6 @@
+{
+  "name": "PA ครู - ระบบบันทึกผลงานประเมิน สพฐ.",
+  "description": "ระบบบันทึกและรวบรวมข้อตกลงในการพัฒนางาน (PA) และผลงานของคุณครู ตามมาตรฐาน สพฐ. 15 ตัวชี้วัด พร้อมระบบส่งออกฐานข้อมูลสำหรับ MySQL",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
