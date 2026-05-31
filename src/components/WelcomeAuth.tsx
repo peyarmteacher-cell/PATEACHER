@@ -8,6 +8,7 @@ interface WelcomeAuthProps {
 
 export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
   const [isLogin, setIsLogin] = useState(true);
+  const [registerSuccess, setRegisterSuccess] = useState(false);
   
   // Registration States
   const [email, setEmail] = useState('');
@@ -68,8 +69,8 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'สมัครสมาชิกไม่สำเร็จ');
       
-      // Auto login after register
-      onSuccess(data.profile);
+      // Instead of logging in automatically, trigger the success pending banner
+      setRegisterSuccess(true);
     } catch (err: any) {
       setErrorStr(err.message || 'การเชื่อมต่อขัดข้อง');
     } finally {
@@ -128,8 +129,54 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-lg">
         <div className="bg-white py-8 px-4 shadow-xl shadow-slate-100 rounded-3xl border border-slate-100 sm:px-10">
           
-          {/* Header Tab selectors */}
-          <div className="flex bg-slate-100 rounded-xl p-1 mb-8">
+          {registerSuccess ? (
+            <div id="register_success_panel" className="text-center space-y-5 py-4">
+              <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-emerald-100 text-emerald-600 mb-2">
+                <UserPlus className="h-7 w-7" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-950 leading-tight">ลงทะเบียนคุณครูสมบูรณ์แล้ว!</h3>
+              
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-left text-xs text-emerald-950 space-y-2">
+                <p className="font-bold flex items-center gap-1.5 text-emerald-800">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <span>สถานะบัญชีครู:</span>
+                  <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold text-[10px]">รออนุมัติเปิดใช้งาน (Pending)</span>
+                </p>
+                <p className="leading-relaxed">การสร้างโปรไฟล์บนเซิร์ฟเวอร์เสร็จสมบูรณ์เรียบร้อยแล้ว แต่อยู่ระหว่างรอการกดยืนยันอนุมัติสิทธิ์เข้าใช้งาน วPA โดยผู้ดูแลระบบสูงสุด (Super Admin)</p>
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/60 text-left text-xs text-slate-600 space-y-2 leading-relaxed">
+                <p className="font-bold text-slate-800 flex items-center gap-1">
+                  <span>💡 คำแนะนำสำหรับผู้ประเมิน/ทดลองระบบ:</span>
+                </p>
+                <p>ท่านสามารถเข้าสู่ระบบด้วยสิทธิ์บัญชีผู้ดูแลระบบสูงสุด (Super Admin) ของ สพฐ. เพื่อเข้าอนุมัติใช้งานให้กับคุณครูบัญชีนี้ได้ด้วยตนเองทันที:</p>
+                <div className="bg-white p-3 rounded-xl border border-slate-200/80 font-mono text-[11.5px] text-slate-800 space-y-1 select-all col-span-2">
+                  <div><strong>Email:</strong> admin@obec.go.th</div>
+                  <div><strong>Password:</strong> admin1234</div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setRegisterSuccess(false);
+                  setIsLogin(true);
+                  // Pre-fill the admin credentials for testing ease!
+                  setLoginEmail('admin@obec.go.th');
+                  setLoginPassword('admin1234');
+                }}
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-md text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all cursor-pointer"
+              >
+                เข้าสู่ระบบด้วย Super Admin เพื่ออนุมัติทันที
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Header Tab selectors */}
+              <div className="flex bg-slate-100 rounded-xl p-1 mb-8">
             <button
               id="switch_login_btn"
               onClick={() => { setIsLogin(true); setErrorStr(null); }}
@@ -203,7 +250,7 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
 
               <div className="flex items-center justify-between pt-1">
                 <span className="text-xs text-slate-500">
-                  * ข้อมูลจำลองของคุณครูจัดเก็บเก็บด้วย SQLite ท้องถิ่น
+                  * จัดเก็บข้อมูลคุณครูและวิทยฐานะปลอดภัยสุทธิ์
                 </span>
                 <button
                   type="button"
@@ -211,7 +258,7 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
                   onClick={fillDemoAccount}
                   className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 underline active:scale-95 transition-all"
                 >
-                  ใช้บัญชีทดสอง (Demo) ตัวอย่าง
+                  ใช้บัญชีทดลอง (Demo) ตัวอย่าง
                 </button>
               </div>
 
@@ -219,10 +266,19 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
                 id="submit_login"
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all active:scale-98 disabled:opacity-50"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? 'กำลังตรวจสอบข้อมูล...' : 'เข้าสู่ระบบเริ่มสะสมผลงาน'}
               </button>
+
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150 flex flex-col gap-1 text-[11px] text-slate-500 leading-relaxed">
+                <span className="font-bold text-slate-700 flex items-center gap-1">🔑 ข้อมูลระบบ Super Admin สพฐ. (ผู้ดูแลระบบกลาง):</span>
+                <span>เพื่ออนุมัติคุณครูและซิงค์ PHPMyAdmin ให้เข้าด้วย:</span>
+                <span className="font-mono mt-1 font-semibold text-slate-800 bg-white border border-slate-200 p-2 rounded-lg block">
+                  Email: admin@obec.go.th <br />
+                  Password: admin1234
+                </span>
+              </div>
             </form>
           ) : (
             /* Register Form */
@@ -380,11 +436,13 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
                 id="submit_register"
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all active:scale-98 disabled:opacity-50"
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all active:scale-98 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? 'กำลังบันทึกลงทะเบียน...' : 'ยืนยันสมัครรหัสเพื่อสร้างเล่มเก็บ PA'}
               </button>
             </form>
+          )}
+          </>
           )}
 
         </div>

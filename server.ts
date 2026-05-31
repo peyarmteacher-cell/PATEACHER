@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import mysql from 'mysql2/promise';
 import {
   registerUser,
   loginUser,
@@ -16,7 +17,10 @@ import {
   getEvidenceAll,
   addEvidence,
   deleteEvidence,
-  generateMySQLDump
+  generateMySQLDump,
+  getAllTeachers,
+  approveTeacher,
+  deleteTeacherAccount
 } from './server_db';
 
 const app = express();
@@ -39,6 +43,19 @@ function checkAuth(req: express.Request, res: express.Response, next: express.Ne
     return res.status(404).json({ error: 'ไม่พบข้อมูลคุณครูในระบบ' });
   }
   (req as any).teacherId = teacherId;
+  next();
+}
+
+// Super Admin Authentication Middleware
+function checkSuperAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'ต้องการสิทธิ์ผู้ดูแลระบบสูงสุด (Super Admin)' });
+  }
+  const teacherId = authHeader.substring(7);
+  if (teacherId !== 'super_admin') {
+    return res.status(403).json({ error: 'คุณไม่มีสิทธิ์เข้าถึงส่วนผู้ดูแลระบบนี้' });
+  }
   next();
 }
 
@@ -70,6 +87,13 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'อีเมลหรือรหัสผ่าน (ชื่อผู้ใช้) ไม่ถูกต้อง' });
   }
 
+  // Check if profile is approved (only for normal teachers)
+  if (profile.id !== 'super_admin' && !profile.isApproved) {
+    return res.status(403).json({
+      error: 'บัญชีรายชื่อคุณครูของคุณอยู่ระหว่าง "รอการอนุมัติใช้งาน" จากผู้ดูแลระบบ (Super Admin) กรุณาแจ้งผู้ดูแลระบบโรงเรียนเพื่อกดยืนยันบัญชีของคุณผ่านทางแผงควบคุมระบบ'
+    });
+  }
+
   res.json({ s: true, profile });
 });
 
@@ -82,6 +106,94 @@ app.put('/api/profile', checkAuth, (req, res) => {
   const profile = updateTeacherProfile((req as any).teacherId, req.body);
   if (!profile) return res.status(404).json({ error: 'ไม่สามารถอัปเดตข้อมูลได้' });
   res.json({ s: true, profile });
+});
+
+// --- Super Admin Manage APIs ---
+app.get('/api/admin/teachers', checkSuperAdmin, (req, res) => {
+  const list = getAllTeachers();
+  res.json({ list });
+});
+
+app.put('/api/admin/teachers/:id/approve', checkSuperAdmin, (req, res) => {
+  const { isApproved } = req.body;
+  const profile = approveTeacher(req.params.id, !!isApproved);
+  if (!profile) {
+    return res.status(404).json({ error: 'ไม่พบรายชื่อคุณครูที่ระบุ' });
+  }
+  res.json({ s: true, profile });
+});
+
+app.delete('/api/admin/teachers/:id', checkSuperAdmin, (req, res) => {
+  const success = deleteTeacherAccount(req.params.id);
+  if (!success) {
+    return res.status(404).json({ error: 'ไม่พบครูที่รหัสผ่าน/ที่อยู่ระบุไว้' });
+  }
+  res.json({ s: true });
+});
+
+// Dynamic Direct MySQL Database Synchronization Route
+app.post('/api/admin/mysql-sync', checkSuperAdmin, async (req, res) => {
+  const { host, port, user, password, database } = req.body;
+  
+  if (!host || !user || !database) {
+    return res.status(400).json({ error: 'กรุณาระบุข้อมูลการเชื่อมต่อที่จำเป็นให้ครบถ้วน (โฮสท์, ผู้ใช้งาน, ชื่อฐานข้อมูล)' });
+  }
+
+  const logs: string[] = [];
+  const timeStr = () => new Date().toLocaleTimeString('th-TH');
+
+  logs.push(`[${timeStr()}] 🔮 เริ่มต้นกระบวนการเชื่อมต่อและอัปเดตฐานข้อมูลภายนอกอัตโนมัติ...`);
+  logs.push(`[${timeStr()}] ⚙️ กำหนดสเปค: Host=${host}, Port=${port || 3306}, User=${user}, Target DB=${database}`);
+
+  let connection;
+  try {
+    // Stage 1: Pre-connect without target database to check credentials & auto-create schema if missing
+    logs.push(`[${timeStr()}] 🔌 พยายามเชื่อมโยงไปยังโฮสท์เซิร์ฟเวอร์โรงเรียน...`);
+    connection = await mysql.createConnection({
+      host,
+      port: Number(port) || 3306,
+      user,
+      password: password || '',
+      connectTimeout: 8000,
+      multipleStatements: true
+    });
+    logs.push(`[${timeStr()}] 🟢 เชื่อมต่อกับ MySQL Server สำเร็จ`);
+  } catch (err: any) {
+    logs.push(`[${timeStr()}] 🔴 ขออภัย! การเชื่อมโยงล้มเหลว: ${err.message || err}`);
+    return res.status(500).json({ s: false, logs, error: err.message });
+  }
+
+  try {
+    // Stage 2: Ensure database schema exists
+    logs.push(`[${timeStr()}] 📂 ตรวจสอบหรือสร้างฐานข้อมูล \`${database}\` ในเซิร์ฟเวอร์ PHPMyAdmin...`);
+    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+    logs.push(`[${timeStr()}] 🟢 การตรวจสอบ/สร้างฐานข้อมูล \`${database}\` เสร็จสมบูรณ์`);
+
+    // Switch connection context to targeted DB
+    await connection.query(`USE \`${database}\`;`);
+    logs.push(`[${timeStr()}] 📂 เลือกเปิดใช้ Database: \`${database}\``);
+
+    // Stage 3: Fetch recent data dump and pipe execute
+    logs.push(`[${timeStr()}] 📃 กำลังดึงข้อมูลและเตรียม SQL Script จากฐานข้อมูลแอปหลัก...`);
+    const sqlDumpCode = generateMySQLDump();
+    
+    logs.push(`[${timeStr()}] ⚡ เริ่มส่งสคริปต์ SQL และรันระบบย่อยใน PHPMyAdmin แบบ Multi-Statement (DROP/CREATE/INSERT)...`);
+    await connection.query(sqlDumpCode);
+    logs.push(`[${timeStr()}] 🟢 ทำการรันโครงสร้างตาราง (teachers, pa_agreements, pa_indicators, pa_evidence) สำเร็จ`);
+    logs.push(`[${timeStr()}] 🟢 ทำการซิงค์อักขระข้อตกลงและตัวเลขคะแนน PA ลงใน PHPMyAdmin เรียบร้อย`);
+
+    // Complete connection
+    await connection.end();
+    logs.push(`[${timeStr()}] 🎉 [สำเร็จเสร็จขั้นตอน] อัพเดตฐานข้อมูลเซิร์ฟเวอร์โรงเรียนผ่านแผงควบคุมเรียบร้อยแล้ว โดยไม่จำเป็นต้องพิมพ์คำสั่งใน PHPMyAdmin ด้วยตนเอง!`);
+    
+    return res.json({ s: true, logs });
+  } catch (err: any) {
+    logs.push(`[${timeStr()}] 🔴 เกิดข้อผิดพลาดร้ายแรงระหว่างเขียนข้อมูลลง PHPMyAdmin: ${err.message || err}`);
+    if (connection) {
+      try { await connection.end(); } catch {}
+    }
+    return res.status(500).json({ s: false, logs, error: err.message });
+  }
 });
 
 // 2. Agreements

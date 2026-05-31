@@ -259,6 +259,145 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'indicators' | 'challenge' | 'mysql' | 'copilot'>('dashboard');
 
+  // --- Super Admin Manage States ---
+  const isSuperAdmin = profile?.id === 'super_admin';
+  const [adminActiveTab, setAdminActiveTab] = useState<'teachers' | 'sync' | 'dump'>('teachers');
+  const [adminTeachers, setAdminTeachers] = useState<TeacherProfile[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+
+  // MySQL Connection states
+  const [mysqlHost, setMysqlHost] = useState('localhost');
+  const [mysqlPort, setMysqlPort] = useState('3306');
+  const [mysqlUser, setMysqlUser] = useState('root');
+  const [mysqlPassword, setMysqlPassword] = useState('');
+  const [mysqlDatabase, setMysqlDatabase] = useState('obec_pa');
+
+  const [syncLogs, setSyncLogs] = useState<string[]>([]);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Fetch all registered teachers for admin
+  const fetchAdminTeachers = async () => {
+    if (!profile || !isSuperAdmin) return;
+    setLoadingTeachers(true);
+    try {
+      const res = await fetch('/api/admin/teachers', {
+        headers: { 'Authorization': `Bearer ${profile.id}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.list) {
+        setAdminTeachers(data.list);
+      }
+    } catch (err) {
+      console.error('Failed to load teachers', err);
+    } finally {
+      setLoadingTeachers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      fetchAdminTeachers();
+      
+      const savedConfig = localStorage.getItem('mysql_connection_config');
+      if (savedConfig) {
+        try {
+          const cfg = JSON.parse(savedConfig);
+          if (cfg.host) setMysqlHost(cfg.host);
+          if (cfg.port) setMysqlPort(cfg.port);
+          if (cfg.user) setMysqlUser(cfg.user);
+          if (cfg.password) setMysqlPassword(cfg.password);
+          if (cfg.database) setMysqlDatabase(cfg.database);
+        } catch {}
+      }
+    }
+  }, [profile, isSuperAdmin]);
+
+  const handleApproveTeacher = async (teacherId: string, approveStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/teachers/${teacherId}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${profile?.id}`
+        },
+        body: JSON.stringify({ isApproved: approveStatus })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAdminTeachers(prev => prev.map(t => t.id === teacherId ? { ...t, isApproved: approveStatus } : t));
+      } else {
+        alert(data.error || 'อนุมัติไม่สำเร็จ');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการเชื่อมโยง');
+    }
+  };
+
+  const handleDeleteTeacherAccount = async (teacherId: string) => {
+    if (!confirm('🚨 ยืนยันสิทธิ์ลบข้อมูลคุณครูและพอร์ตโฟลิโอ วPA ทั้งระบบใช่หรือไม่? สื่อและประเด็นท้าทายทุกประเภทของคุณครูท่านนี้จะถูกถอนออกถาวร!')) return;
+    try {
+      const res = await fetch(`/api/admin/teachers/${teacherId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${profile?.id}`
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAdminTeachers(prev => prev.filter(t => t.id !== teacherId));
+      } else {
+        alert(data.error || 'ลบข้อมูลคุณครูไม่สำเร็จ');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการเชื่อมโยง');
+    }
+  };
+
+  const handleSyncToSchoolMySQL = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSyncLogs([]);
+    setSyncError(null);
+    setIsSyncing(true);
+
+    const config = {
+      host: mysqlHost,
+      port: mysqlPort,
+      user: mysqlUser,
+      password: mysqlPassword,
+      database: mysqlDatabase
+    };
+
+    localStorage.setItem('mysql_connection_config', JSON.stringify(config));
+
+    try {
+      const res = await fetch('/api/admin/mysql-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${profile?.id}`
+        },
+        body: JSON.stringify(config)
+      });
+      const data = await res.json();
+      
+      if (data.logs) {
+        setSyncLogs(data.logs);
+      }
+      
+      if (!res.ok) {
+        setSyncError(data.error || 'ไม่สามารถซิงค์โครงสร้างฐานข้อมูล PHPMyAdmin ได้สำเร็จ');
+      }
+    } catch (err: any) {
+      setSyncError(err.message || 'การเชื่อมโยงขัดข้อง');
+      setSyncLogs(prev => [...prev, `[${new Date().toLocaleTimeString('th-TH')}] 🔴 ระบบซิงก์ออฟไลน์: ${err.message}`]);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // PA States
   const [agreements, setAgreements] = useState<PAAgreement[]>([]);
   const [selectedAgreement, setSelectedAgreement] = useState<PAAgreement | null>(null);

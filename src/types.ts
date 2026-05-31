@@ -15,6 +15,7 @@ export interface TeacherProfile {
   headerBannerUrl?: string; // รููปภาพหรือแบบเทมเพลตสำหรับหน้าเว็บ Portfolio เสนอกรรมการ
   teachingSubject: string; // กลุ่มสาระการเรียนรู้/วิชาที่สอน
   teachingHours: string; // ชั่วโมงการปฏิบัติงาน (ชั่วโมง/สัปดาห์)
+  isApproved?: boolean; // อนุมัติใช้งานโดย Super Admin
 }
 
 export interface PAAgreement {

@@ -72,7 +72,6 @@ export function registerUser(
   }
 
   const id = 'teacher_' + Math.random().toString(36).substr(2, 9);
-  const passwordHash = hashPassword(userName); // password defaults to same value initially if simplified, but let's offer standard parameter
   
   const newUser = {
     id,
@@ -82,6 +81,7 @@ export function registerUser(
     schoolName,
     teachingSubject,
     teachingHours,
+    isApproved: false, // Default pending approval for new registration
     passwordHash: hashPassword(userName), // We default the password to what they specify
     photoUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName)}`
   };
@@ -94,6 +94,21 @@ export function registerUser(
 }
 
 export function loginUser(email: string, userNameInput: string): TeacherProfile | null {
+  // 1. Static check for Super Admin
+  if (email.toLowerCase() === 'admin@obec.go.th' && userNameInput === 'admin1234') {
+    return {
+      id: 'super_admin',
+      email: 'admin@obec.go.th',
+      fullName: 'ผู้ดูแลระบบสูงสุด (Super Admin Obec)',
+      position: 'ผู้ดูแลระบบโรงเรียน',
+      schoolName: 'สพฐ. กระทรวงศึกษาธิการ',
+      teachingSubject: 'เทคโนโลยีสารสนเทศ',
+      teachingHours: '0',
+      isApproved: true,
+      photoUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin'
+    };
+  }
+
   const db = loadDb();
   const user = db.users.find(
     u => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === hashPassword(userNameInput)
@@ -106,6 +121,7 @@ export function loginUser(email: string, userNameInput: string): TeacherProfile 
 }
 
 export function updateTeacherProfile(id: string, updates: Partial<TeacherProfile>): TeacherProfile | null {
+  if (id === 'super_admin') return null; // Admin profile is static read-only
   const db = loadDb();
   const index = db.users.findIndex(u => u.id === id);
   if (index === -1) return null;
@@ -122,11 +138,60 @@ export function updateTeacherProfile(id: string, updates: Partial<TeacherProfile
 }
 
 export function getTeacherProfile(id: string): TeacherProfile | null {
+  if (id === 'super_admin') {
+    return {
+      id: 'super_admin',
+      email: 'admin@obec.go.th',
+      fullName: 'ผู้ดูแลระบบสูงสุด (Super Admin Obec)',
+      position: 'ผู้ดูแลระบบโรงเรียน',
+      schoolName: 'สพฐ. กระทรวงศึกษาธิการ',
+      teachingSubject: 'เทคโนโลยีสารสนเทศ',
+      teachingHours: '0',
+      isApproved: true,
+      photoUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin'
+    };
+  }
   const db = loadDb();
   const user = db.users.find(u => u.id === id);
   if (!user) return null;
   const { passwordHash: _, ...profile } = user;
   return profile;
+}
+
+// Super Admin Database Helper Methods
+export function getAllTeachers(): TeacherProfile[] {
+  const db = loadDb();
+  return db.users.map(({ passwordHash: _, ...profile }) => profile);
+}
+
+export function approveTeacher(id: string, approved: boolean): TeacherProfile | null {
+  const db = loadDb();
+  const index = db.users.findIndex(u => u.id === id);
+  if (index === -1) return null;
+
+  db.users[index].isApproved = approved;
+  saveDb(db);
+
+  const { passwordHash: _, ...profile } = db.users[index];
+  return profile;
+}
+
+export function deleteTeacherAccount(id: string): boolean {
+  const db = loadDb();
+  const originalLength = db.users.length;
+  db.users = db.users.filter(u => u.id !== id);
+  
+  if (db.users.length < originalLength) {
+    // Cascade delete materials related to this teacher
+    const agreementsToDelete = db.agreements.filter(a => a.teacherId === id).map(a => a.id);
+    db.agreements = db.agreements.filter(a => a.teacherId !== id);
+    db.indicators = db.indicators.filter(ind => !agreementsToDelete.includes(ind.agreementId));
+    db.evidence = db.evidence.filter(ev => !agreementsToDelete.includes(ev.agreementId));
+    
+    saveDb(db);
+    return true;
+  }
+  return false;
 }
 
 // 15 Indicators Template aligned with OBEC (สพฐ.) Standards
@@ -466,6 +531,7 @@ export function generateMySQLDump(): string {
   sql += `  \`teachingHours\` VARCHAR(50) DEFAULT NULL,\n`;
   sql += `  \`photoUrl\` TEXT DEFAULT NULL,\n`;
   sql += `  \`headerBannerUrl\` TEXT DEFAULT NULL,\n`;
+  sql += `  \`isApproved\` TINYINT(1) NOT NULL DEFAULT 0,\n`;
   sql += `  PRIMARY KEY (\`id\`)\n`;
   sql += `) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;\n\n`;
 
@@ -549,7 +615,7 @@ export function generateMySQLDump(): string {
   if (db.users.length > 0) {
     sql += `-- Data for Table \`teachers\`\n`;
     db.users.forEach(u => {
-      sql += `INSERT INTO \`teachers\` (\`id\`, \`email\`, \`passwordHash\`, \`fullName\`, \`position\`, \`schoolName\`, \`teachingSubject\`, \`teachingHours\`, \`photoUrl\`, \`headerBannerUrl\`) VALUES (\n`;
+      sql += `INSERT INTO \`teachers\` (\`id\`, \`email\`, \`passwordHash\`, \`fullName\`, \`position\`, \`schoolName\`, \`teachingSubject\`, \`teachingHours\`, \`photoUrl\`, \`headerBannerUrl\`, \`isApproved\`) VALUES (\n`;
       sql += `  ${escapeString(u.id)},\n`;
       sql += `  ${escapeString(u.email)},\n`;
       sql += `  ${escapeString(u.passwordHash)},\n`;
@@ -559,7 +625,8 @@ export function generateMySQLDump(): string {
       sql += `  ${escapeString(u.teachingSubject)},\n`;
       sql += `  ${escapeString(u.teachingHours)},\n`;
       sql += `  ${escapeString(u.photoUrl)},\n`;
-      sql += `  ${escapeString(u.headerBannerUrl)}\n`;
+      sql += `  ${escapeString(u.headerBannerUrl)},\n`;
+      sql += `  ${u.isApproved ? 1 : 0}\n`;
       sql += `);\n`;
     });
     sql += `\n`;
