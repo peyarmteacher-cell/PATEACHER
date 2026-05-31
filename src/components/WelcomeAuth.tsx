@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Mail, Shield, School, BookOpen, Clock, LogIn, UserPlus } from 'lucide-react';
 import { TeacherProfile } from '../types';
+import { apiFetch } from '../api';
 
 interface WelcomeAuthProps {
   onSuccess: (profile: TeacherProfile) => void;
@@ -51,7 +52,7 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -88,7 +89,7 @@ export default function WelcomeAuth({ onSuccess }: WelcomeAuthProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

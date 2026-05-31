@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import WelcomeAuth from './components/WelcomeAuth';
 import TeacherPortfolioView from './components/TeacherPortfolioView';
+import { apiFetch } from './api';
 import { TeacherProfile, PAAgreement, PAIndicator, PAEvidence, ChatMessage } from './types';
 
 const DEMO_PROFILE: TeacherProfile = {
@@ -282,7 +283,7 @@ export default function App() {
     if (!profile || !isSuperAdmin) return;
     setLoadingTeachers(true);
     try {
-      const res = await fetch('/api/admin/teachers', {
+      const res = await apiFetch('/api/admin/teachers', {
         headers: { 'Authorization': `Bearer ${profile.id}` }
       });
       const data = await res.json();
@@ -316,7 +317,7 @@ export default function App() {
 
   const handleApproveTeacher = async (teacherId: string, approveStatus: boolean) => {
     try {
-      const res = await fetch(`/api/admin/teachers/${teacherId}/approve`, {
+      const res = await apiFetch(`/api/admin/teachers/${teacherId}/approve`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -339,7 +340,7 @@ export default function App() {
   const handleDeleteTeacherAccount = async (teacherId: string) => {
     if (!confirm('🚨 ยืนยันสิทธิ์ลบข้อมูลคุณครูและพอร์ตโฟลิโอ วPA ทั้งระบบใช่หรือไม่? สื่อและประเด็นท้าทายทุกประเภทของคุณครูท่านนี้จะถูกถอนออกถาวร!')) return;
     try {
-      const res = await fetch(`/api/admin/teachers/${teacherId}`, {
+      const res = await apiFetch(`/api/admin/teachers/${teacherId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${profile?.id}`
@@ -374,7 +375,7 @@ export default function App() {
     localStorage.setItem('mysql_connection_config', JSON.stringify(config));
 
     try {
-      const res = await fetch('/api/admin/mysql-sync', {
+      const res = await apiFetch('/api/admin/mysql-sync', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -467,7 +468,7 @@ export default function App() {
   const fetchAgreements = async () => {
     if (!profile) return;
     try {
-      const res = await fetch('/api/agreements', {
+      const res = await apiFetch('/api/agreements', {
         headers: {
           'Authorization': `Bearer ${profile.id}`
         }
@@ -494,10 +495,10 @@ export default function App() {
     try {
       // Parallel fetch
       const [resInd, resEv] = await Promise.all([
-        fetch(`/api/agreements/${agreementId}/indicators`, {
+        apiFetch(`/api/agreements/${agreementId}/indicators`, {
           headers: { 'Authorization': `Bearer ${profile.id}` }
         }),
-        fetch(`/api/agreements/${agreementId}/evidence`, {
+        apiFetch(`/api/agreements/${agreementId}/evidence`, {
           headers: { 'Authorization': `Bearer ${profile.id}` }
         })
       ]);
@@ -523,7 +524,7 @@ export default function App() {
   const handleCreateAgreement = async (year: string) => {
     if (!profile || !year) return;
     try {
-      const res = await fetch('/api/agreements', {
+      const res = await apiFetch('/api/agreements', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -537,7 +538,7 @@ export default function App() {
         return;
       }
       // Re-fetch
-      const updatedRes = await fetch('/api/agreements', {
+      const updatedRes = await apiFetch('/api/agreements', {
         headers: { 'Authorization': `Bearer ${profile.id}` }
       });
       const updatedData = await updatedRes.json();
@@ -558,7 +559,7 @@ export default function App() {
     if (!profile || !selectedAgreement) return;
     setIsSavingAgreement(true);
     try {
-      const res = await fetch(`/api/agreements/${selectedAgreement.id}`, {
+      const res = await apiFetch(`/api/agreements/${selectedAgreement.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -583,7 +584,7 @@ export default function App() {
   const handleUpdateProfile = async (fields: Partial<TeacherProfile>) => {
     if (!profile) return;
     try {
-      const res = await fetch('/api/profile', {
+      const res = await apiFetch('/api/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -606,7 +607,7 @@ export default function App() {
     if (!profile || !selectedIndicator) return;
     setSavingIndicatorId(indicatorId);
     try {
-      const res = await fetch(`/api/indicators/${indicatorId}`, {
+      const res = await apiFetch(`/api/indicators/${indicatorId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -636,7 +637,7 @@ export default function App() {
     }
     setIsAddingEvidence(true);
     try {
-      const res = await fetch(`/api/agreements/${selectedAgreement.id}/evidence`, {
+      const res = await apiFetch(`/api/agreements/${selectedAgreement.id}/evidence`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -670,7 +671,7 @@ export default function App() {
   const handleDeleteEvidence = async (evidenceId: string) => {
     if (!profile || !confirm('ยืนยันประสงค์ต้องการลบเอกสารหลักฐานชิ้นนี้?')) return;
     try {
-      const res = await fetch(`/api/evidence/${evidenceId}`, {
+      const res = await apiFetch(`/api/evidence/${evidenceId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${profile.id}`
@@ -710,7 +711,7 @@ export default function App() {
         currentIndicatorTitle: selectedIndicator?.title
       };
 
-      const res = await fetch('/api/copilot/chat', {
+      const res = await apiFetch('/api/copilot/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
